@@ -237,6 +237,34 @@ public class XnatDicomServiceImpl implements XnatDicomService {
     }
 
     @Override
+    public Attributes retrieveStudyMetadata(UserI user, String projectId, String studyInstanceUID) {
+        try {
+            XnatProjectdata project = XnatProjectdata.getXnatProjectdatasById(projectId, user, false);
+            if (project == null) {
+                logger.warn("Project not found or user does not have access: {}", projectId);
+                return null;
+            }
+
+            // Find the session with matching StudyInstanceUID
+            XnatImagesessiondata session = findSessionByUID(user, projectId, studyInstanceUID);
+            if (session == null) {
+                logger.warn("Study not found: {}", studyInstanceUID);
+                return null;
+            }
+
+            // Create comprehensive study-level metadata
+            Attributes attrs = createEnhancedStudyAttributes(session);
+
+            logger.info("Retrieved study metadata for study: {}", studyInstanceUID);
+            return attrs;
+
+        } catch (Exception e) {
+            logger.error("Error retrieving study metadata: " + studyInstanceUID, e);
+            return null;
+        }
+    }
+
+    @Override
     public List<InputStream> retrieveStudy(UserI user, String projectId, String studyInstanceUID) {
         List<InputStream> streams = new ArrayList<>();
 
@@ -402,6 +430,106 @@ public class XnatDicomServiceImpl implements XnatDicomService {
 
         } catch (Exception e) {
             logger.error("Error creating study attributes", e);
+        }
+
+        return attrs;
+    }
+
+    /**
+     * Create enhanced study-level DICOM attributes with comprehensive metadata
+     */
+    private Attributes createEnhancedStudyAttributes(XnatImagesessiondata session) {
+        Attributes attrs = new Attributes();
+
+        try {
+            // Study Instance UID (required)
+            String studyUID = session.getUid();
+            if (studyUID != null && !studyUID.isEmpty()) {
+                attrs.setString(Tag.StudyInstanceUID, VR.UI, studyUID);
+            }
+
+            // Patient identification
+            String subjectId = session.getSubjectId();
+            attrs.setString(Tag.PatientName, VR.PN, subjectId != null ? subjectId : "UNKNOWN");
+            attrs.setString(Tag.PatientID, VR.LO, subjectId != null ? subjectId : "UNKNOWN");
+
+            // Study date and time
+            Object sessionDateObj = session.getDate();
+            if (sessionDateObj != null) {
+                String dateStr = sessionDateObj.toString().replaceAll("-", "");
+                attrs.setString(Tag.StudyDate, VR.DA, dateStr);
+            } else {
+                attrs.setString(Tag.StudyDate, VR.DA, "");
+            }
+
+            // Study time (use session time if available)
+            Object sessionTimeObj = session.getTime();
+            if (sessionTimeObj != null) {
+                String timeStr = sessionTimeObj.toString().replaceAll(":", "");
+                attrs.setString(Tag.StudyTime, VR.TM, timeStr);
+            } else {
+                attrs.setString(Tag.StudyTime, VR.TM, "");
+            }
+
+            // Study description and identifiers
+            String label = session.getLabel();
+            attrs.setString(Tag.StudyDescription, VR.LO, label != null ? label : "");
+            attrs.setString(Tag.AccessionNumber, VR.SH, label != null ? label : "");
+
+            String id = session.getId();
+            attrs.setString(Tag.StudyID, VR.SH, id != null ? id : "");
+
+            // Referring physician - would need to be populated from custom fields if available
+            // attrs.setString(Tag.ReferringPhysicianName, VR.PN, "");
+
+            // Count series and instances
+            List scans = session.getScans_scan();
+            int numberOfSeries = 0;
+            int numberOfInstances = 0;
+            List<String> modalities = new ArrayList<>();
+
+            if (scans != null && !scans.isEmpty()) {
+                numberOfSeries = scans.size();
+
+                for (Object scanObj : scans) {
+                    XnatImagescandata scan = (XnatImagescandata) scanObj;
+
+                    // Collect modalities
+                    String modality = scan.getModality();
+                    if (modality != null && !modality.isEmpty() && !modalities.contains(modality)) {
+                        modalities.add(modality);
+                    }
+
+                    // Count instances in this series
+                    List<Attributes> instances = readDicomFilesFromScan(scan);
+                    numberOfInstances += instances.size();
+                }
+            }
+
+            // Set modalities in study
+            if (!modalities.isEmpty()) {
+                attrs.setString(Tag.ModalitiesInStudy, VR.CS, String.join("\\", modalities));
+            }
+
+            // Number of series and instances
+            attrs.setInt(Tag.NumberOfStudyRelatedSeries, VR.IS, numberOfSeries);
+            attrs.setInt(Tag.NumberOfStudyRelatedInstances, VR.IS, numberOfInstances);
+
+            // Institution name (use project name or scanner)
+            String project = session.getProject();
+            if (project != null && !project.isEmpty()) {
+                attrs.setString(Tag.InstitutionName, VR.LO, project);
+            }
+
+            // Patient information (if available from subject)
+            // Note: Gender and DOB would need to be populated from DICOM files or custom fields
+            // if available in your XNAT instance. These could be extracted from the first DICOM
+            // file in the study if needed.
+            // attrs.setString(Tag.PatientSex, VR.CS, "");
+            // attrs.setString(Tag.PatientBirthDate, VR.DA, "");
+
+        } catch (Exception e) {
+            logger.error("Error creating enhanced study attributes", e);
         }
 
         return attrs;
