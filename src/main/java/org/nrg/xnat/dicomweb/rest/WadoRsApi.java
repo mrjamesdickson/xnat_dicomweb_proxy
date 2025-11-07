@@ -261,6 +261,44 @@ public class WadoRsApi extends AbstractXapiRestController {
     }
 
     /**
+     * Retrieve study-level metadata
+     * GET /dicomweb/projects/{projectId}/studies/{studyUID}/metadata
+     */
+    @XapiRequestMapping(
+            value = "/dicomweb/projects/{projectId}/studies/{studyUID}/metadata",
+            method = RequestMethod.GET,
+            produces = "application/dicom+json"
+    )
+    @ApiOperation(value = "Retrieve study-level metadata (WADO-RS)", response = String.class)
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Study metadata retrieved"),
+            @ApiResponse(code = 401, message = "Must be authenticated"),
+            @ApiResponse(code = 404, message = "Study not found"),
+            @ApiResponse(code = 500, message = "Internal error")
+    })
+    public ResponseEntity<String> retrieveStudyMetadata(@PathVariable String projectId,
+                                                        @PathVariable String studyUID) {
+        try {
+            UserI user = getSessionUser();
+            Attributes attrs = dicomService.retrieveStudyMetadata(user, projectId, studyUID);
+
+            if (attrs == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            String json = "[" + DicomWebUtils.toJson(attrs) + "]";
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(DicomWebUtils.getDicomJsonContentType()))
+                    .body(json);
+
+        } catch (Exception e) {
+            logger.error("Error retrieving study metadata for study: " + studyUID, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
      * Retrieve metadata for all instances in a series
      * GET /dicomweb/projects/{projectId}/studies/{studyUID}/series/{seriesUID}/metadata
      */
