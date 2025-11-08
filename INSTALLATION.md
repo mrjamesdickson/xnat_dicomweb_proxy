@@ -28,7 +28,7 @@ This guide provides step-by-step instructions for installing and deploying the X
 
 3. The JAR file will be created at:
    ```
-   build/libs/xnat-dicomweb-proxy-1.0.0.jar
+   build/libs/xnat-dicomweb-proxy-1.1.1.jar
    ```
 
 ### Using the Build Script
@@ -43,7 +43,7 @@ This guide provides step-by-step instructions for installing and deploying the X
 
 1. Copy the JAR file to XNAT's plugins directory:
    ```bash
-   cp build/libs/xnat-dicomweb-proxy-1.0.0.jar $XNAT_HOME/plugins/
+   cp build/libs/xnat-dicomweb-proxy-1.1.1.jar $XNAT_HOME/plugins/
    ```
 
 2. Restart XNAT:
@@ -56,7 +56,7 @@ This guide provides step-by-step instructions for installing and deploying the X
 1. Log into XNAT as an administrator
 2. Navigate to: **Administer → Plugin Settings**
 3. Click "Install Plugin"
-4. Upload `xnat-dicomweb-proxy-1.0.0.jar`
+4. Upload `xnat-dicomweb-proxy-1.1.1.jar`
 5. XNAT will automatically restart to load the plugin
 
 ## Configuration
@@ -187,7 +187,7 @@ Ensure users have appropriate permissions:
 **Symptoms**: No log messages about dicomwebproxy
 
 **Solutions**:
-- Check JAR file permissions: `chmod 644 $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.0.0.jar`
+- Check JAR file permissions: `chmod 644 $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.1.1.jar`
 - Verify XNAT has write access to plugins directory
 - Check for errors in `catalina.out`
 - Ensure no conflicting plugins
@@ -238,7 +238,7 @@ Ensure users have appropriate permissions:
 
 1. Remove JAR file:
    ```bash
-   rm $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.0.0.jar
+   rm $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.1.1.jar
    ```
 
 2. Restart XNAT:

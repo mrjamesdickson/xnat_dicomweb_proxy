@@ -38,12 +38,12 @@
   ./gradlew clean build -x test
   ```
   - Expected output: `BUILD SUCCESSFUL`
-  - JAR location: `build/libs/xnat-dicomweb-proxy-1.0.0.jar`
+  - JAR location: `build/libs/xnat-dicomweb-proxy-1.1.1.jar`
   - JAR size: ~20KB
 
 - [ ] **Verify JAR Contents**
   ```bash
-  jar tf build/libs/xnat-dicomweb-proxy-1.0.0.jar | grep DicomWeb
+  jar tf build/libs/xnat-dicomweb-proxy-1.1.1.jar | grep DicomWeb
   ```
   - Should see plugin classes
 
@@ -57,8 +57,8 @@
 
 - [ ] **Copy Plugin to XNAT**
   ```bash
-  cp build/libs/xnat-dicomweb-proxy-1.0.0.jar $XNAT_HOME/plugins/
-  chmod 644 $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.0.0.jar
+  cp build/libs/xnat-dicomweb-proxy-1.1.1.jar $XNAT_HOME/plugins/
+  chmod 644 $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.1.1.jar
   ```
 
 - [ ] **Configure Archive Path (if custom)**
@@ -251,7 +251,7 @@ If issues occur:
 
 - [ ] **Remove Plugin**
   ```bash
-  rm $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.0.0.jar
+  rm $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.1.1.jar
   ```
 
 - [ ] **Clear Cache**

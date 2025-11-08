@@ -11,7 +11,7 @@
 ### ✅ Plugin Installation
 - Plugin successfully installed and accessible
 - Test page loads correctly at `/xapi/dicomweb/test`
-- Plugin version: 1.0.0
+- Plugin version: 1.1.1
 - Plugin ID: dicomwebproxy
 
 ### ❌ API Endpoint Issue Found
@@ -79,7 +79,7 @@ ArrayList sessions = XnatImagesessiondata.getXnatImagesessiondatasByField(
 ✅ **Build Successful**
 ```
 BUILD SUCCESSFUL in 1s
-JAR: build/libs/xnat-dicomweb-proxy-1.0.0.jar
+JAR: build/libs/xnat-dicomweb-proxy-1.1.1.jar
 Size: 26KB
 ```
 
@@ -98,11 +98,11 @@ sudo /etc/init.d/tomcat stop
 ### 2. Replace Plugin JAR
 ```bash
 # Backup old plugin
-mv $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.0.0.jar \
-   $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.0.0.jar.old
+mv $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.1.1.jar \
+   $XNAT_HOME/plugins/xnat-dicomweb-proxy-1.1.1.jar.old
 
 # Copy new plugin
-scp build/libs/xnat-dicomweb-proxy-1.0.0.jar \
+scp build/libs/xnat-dicomweb-proxy-1.1.1.jar \
     user@demo02.xnatworks.io:$XNAT_HOME/plugins/
 ```
 
