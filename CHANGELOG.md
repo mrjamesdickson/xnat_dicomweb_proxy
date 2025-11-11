@@ -2,6 +2,32 @@
 
 All notable changes to the XNAT DICOMweb Proxy Plugin will be documented in this file.
 
+## [1.1.2] - 2025-11-11
+
+### Fixed
+- **Critical**: Fixed NullPointerException in study metadata endpoint that made it completely unusable
+- Study metadata endpoint now correctly returns metadata for all instances in a study (DICOMweb compliant per DICOM PS3.18)
+- Endpoint routing priority adjusted to prevent conflicts between study retrieval and metadata endpoints
+
+### Added
+- New `retrieveAllStudyInstanceMetadata()` service method that properly iterates all series in a study
+- Comprehensive unit tests for study metadata endpoint (WadoRsApiTest - 4 tests)
+- End-to-end tests for DICOMweb plugin (DicomWebPluginE2ETest - 6 tests)
+- Detailed logging for debugging study metadata requests
+- Documentation: `docs/STUDY_METADATA_FIX.md` with technical details and deployment instructions
+
+### Changed
+- Study metadata endpoint now returns array of all instance metadata instead of just study-level attributes
+- Updated test page with study metadata endpoint verification
+- Improved error handling and logging in WadoRsApi
+
+### Technical Details
+- The fix creates a dedicated method that iterates through all series in a study and collects instance metadata
+- No longer passes null parameters that caused NullPointerException
+- Complies with DICOM PS3.18 specification for Retrieve Study Metadata transaction
+- Test coverage includes regression tests to prevent similar issues
+- Response format: JSON array of DICOM instances with SOP Class UID, SOP Instance UID, and all DICOM attributes
+
 ## [1.1.1] - 2025-01-07
 
 ### Added

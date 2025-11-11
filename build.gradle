@@ -4,7 +4,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'idea'
 apply plugin: 'eclipse'
 
-def pluginVersion = '1.1.1'
+def pluginVersion = '1.1.2'
 
 buildscript {
     ext {
