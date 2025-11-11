@@ -43,6 +43,11 @@ public interface XnatDicomService {
     Attributes retrieveStudyMetadata(UserI user, String projectId, String studyInstanceUID);
 
     /**
+     * Retrieve metadata for all instances in a study
+     */
+    List<Attributes> retrieveAllStudyInstanceMetadata(UserI user, String projectId, String studyInstanceUID);
+
+    /**
      * Retrieve all instances in a study
      */
     List<InputStream> retrieveStudy(UserI user, String projectId, String studyInstanceUID);

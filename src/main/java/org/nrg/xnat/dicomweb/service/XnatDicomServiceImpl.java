@@ -265,6 +265,44 @@ public class XnatDicomServiceImpl implements XnatDicomService {
     }
 
     @Override
+    public List<Attributes> retrieveAllStudyInstanceMetadata(UserI user, String projectId, String studyInstanceUID) {
+        List<Attributes> allInstances = new ArrayList<>();
+
+        try {
+            XnatProjectdata project = XnatProjectdata.getXnatProjectdatasById(projectId, user, false);
+            if (project == null) {
+                logger.warn("Project not found or user does not have access: {}", projectId);
+                return allInstances;
+            }
+
+            // Find the session with matching StudyInstanceUID
+            XnatImagesessiondata session = findSessionByUID(user, projectId, studyInstanceUID);
+            if (session == null) {
+                logger.warn("Study not found: {}", studyInstanceUID);
+                return allInstances;
+            }
+
+            // Get all scans (series) in the session
+            List scans = session.getScans_scan();
+            logger.debug("Found {} scans in study {}", scans.size(), studyInstanceUID);
+
+            // Collect instances from all series
+            for (Object scanObj : scans) {
+                XnatImagescandata scan = (XnatImagescandata) scanObj;
+                List<Attributes> instances = readDicomFilesFromScan(scan);
+                allInstances.addAll(instances);
+            }
+
+            logger.info("Retrieved metadata for {} instances in study {}", allInstances.size(), studyInstanceUID);
+
+        } catch (Exception e) {
+            logger.error("Error retrieving all instance metadata for study: " + studyInstanceUID, e);
+        }
+
+        return allInstances;
+    }
+
+    @Override
     public List<InputStream> retrieveStudy(UserI user, String projectId, String studyInstanceUID) {
         List<InputStream> streams = new ArrayList<>();
 

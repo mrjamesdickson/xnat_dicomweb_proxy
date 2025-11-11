@@ -205,8 +205,8 @@ public class WadoRsApi extends AbstractXapiRestController {
             UserI user = getSessionUser();
             logger.info("Processing study metadata request");
 
-            // Return instance metadata as JSON
-            List<Attributes> instances = dicomService.searchInstances(user, projectId, studyUID, null, null);
+            // Return metadata for all instances in the study
+            List<Attributes> instances = dicomService.retrieveAllStudyInstanceMetadata(user, projectId, studyUID);
 
             logger.info("Retrieved {} instances", instances != null ? instances.size() : 0);
 
