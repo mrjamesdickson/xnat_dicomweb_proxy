@@ -132,7 +132,7 @@ public class XnatDicomServiceImplTest {
     @Test
     public void extractFramePixelData_DoesNotReturnPNG() throws Exception {
         // Find a test DICOM file
-        String testDicomPath = "../data/Elder_subject_florbetapir/291467/scans/510007/DICOM/Generic_Study_ID.PT.Generic_Study_Description.510007.4.20120101.123408.1qhub5e.dcm";
+        String testDicomPath = "src/test/resources/test-data/sample.dcm";
         java.io.File testFile = new java.io.File(testDicomPath);
 
         if (!testFile.exists()) {
@@ -174,7 +174,7 @@ public class XnatDicomServiceImplTest {
      */
     @Test
     public void extractFramePixelData_ReturnsRawPixelData() throws Exception {
-        String testDicomPath = "../data/Elder_subject_florbetapir/291467/scans/510007/DICOM/Generic_Study_ID.PT.Generic_Study_Description.510007.4.20120101.123408.1qhub5e.dcm";
+        String testDicomPath = "src/test/resources/test-data/sample.dcm";
         java.io.File testFile = new java.io.File(testDicomPath);
 
         if (!testFile.exists()) {
@@ -224,7 +224,7 @@ public class XnatDicomServiceImplTest {
      */
     @Test
     public void extractFramePixelData_CompressedUsesImageIO() throws Exception {
-        String testDicomPath = "../data/Elder_subject_florbetapir/291467/scans/510007/DICOM/Generic_Study_ID.PT.Generic_Study_Description.510007.4.20120101.123408.1qhub5e.dcm";
+        String testDicomPath = "src/test/resources/test-data/sample.dcm";
         java.io.File testFile = new java.io.File(testDicomPath);
 
         if (!testFile.exists()) {
@@ -280,7 +280,7 @@ public class XnatDicomServiceImplTest {
      */
     @Test
     public void extractFramePixelData_InvalidFrameIndex_ReturnsNull() throws Exception {
-        String testDicomPath = "../data/Elder_subject_florbetapir/291467/scans/510007/DICOM/Generic_Study_ID.PT.Generic_Study_Description.510007.4.20120101.123408.1qhub5e.dcm";
+        String testDicomPath = "src/test/resources/test-data/sample.dcm";
         java.io.File testFile = new java.io.File(testDicomPath);
 
         if (!testFile.exists()) {
@@ -311,7 +311,7 @@ public class XnatDicomServiceImplTest {
      */
     @Test
     public void extractFramePixelData_NegativeIndex_ReturnsNull() throws Exception {
-        String testDicomPath = "../data/Elder_subject_florbetapir/291467/scans/510007/DICOM/Generic_Study_ID.PT.Generic_Study_Description.510007.4.20120101.123408.1qhub5e.dcm";
+        String testDicomPath = "src/test/resources/test-data/sample.dcm";
         java.io.File testFile = new java.io.File(testDicomPath);
 
         if (!testFile.exists()) {
