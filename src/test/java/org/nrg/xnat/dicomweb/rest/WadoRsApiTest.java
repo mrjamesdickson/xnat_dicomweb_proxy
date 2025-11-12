@@ -168,4 +168,137 @@ public class WadoRsApiTest {
         }
         return count;
     }
+
+    // Frame retrieval tests
+
+    @Test
+    public void testRetrieveFrames_SingleFrame_ReturnsOctetStream() {
+        // Arrange
+        String projectId = "TestProject";
+        String studyUID = "1.2.3.4.5";
+        String seriesUID = "1.2.3.4.5.100";
+        String instanceUID = "1.2.3.4.5.6.1";
+        String frameList = "1";
+
+        List<byte[]> mockFrames = new ArrayList<>();
+        mockFrames.add(new byte[]{1, 2, 3, 4, 5});
+
+        when(mockDicomService.retrieveFrames(any(UserI.class), eq(projectId), eq(studyUID),
+                eq(seriesUID), eq(instanceUID), eq(frameList)))
+            .thenReturn(mockFrames);
+
+        // Act
+        ResponseEntity<?> response = wadoRsApi.retrieveFrames(projectId, studyUID, seriesUID,
+                instanceUID, frameList, null);
+
+        // Assert
+        assertEquals("Should return 200 OK", HttpStatus.OK, response.getStatusCode());
+        assertNotNull("Content-Type should be set", response.getHeaders().getContentType());
+        assertEquals("Should return application/octet-stream for single frame",
+                "application/octet-stream", response.getHeaders().getContentType().toString());
+    }
+
+    @Test
+    public void testRetrieveFrames_MultipleFrames_ReturnsMultipart() {
+        // Arrange
+        String projectId = "TestProject";
+        String studyUID = "1.2.3.4.5";
+        String seriesUID = "1.2.3.4.5.100";
+        String instanceUID = "1.2.3.4.5.6.1";
+        String frameList = "1,2,3";
+
+        List<byte[]> mockFrames = new ArrayList<>();
+        mockFrames.add(new byte[]{1, 2, 3});
+        mockFrames.add(new byte[]{4, 5, 6});
+        mockFrames.add(new byte[]{7, 8, 9});
+
+        when(mockDicomService.retrieveFrames(any(UserI.class), eq(projectId), eq(studyUID),
+                eq(seriesUID), eq(instanceUID), eq(frameList)))
+            .thenReturn(mockFrames);
+
+        // Act
+        ResponseEntity<?> response = wadoRsApi.retrieveFrames(projectId, studyUID, seriesUID,
+                instanceUID, frameList, null);
+
+        // Assert
+        assertEquals("Should return 200 OK", HttpStatus.OK, response.getStatusCode());
+        assertNotNull("Content-Type should be set", response.getHeaders().getContentType());
+        String contentType = response.getHeaders().getContentType().toString();
+        assertTrue("Should return multipart/related for multiple frames",
+                contentType.startsWith("multipart/related"));
+        assertTrue("Should include boundary parameter", contentType.contains("boundary="));
+    }
+
+    @Test
+    public void testRetrieveFrames_NotFound() {
+        // Arrange
+        String projectId = "TestProject";
+        String studyUID = "1.2.3.4.5";
+        String seriesUID = "1.2.3.4.5.100";
+        String instanceUID = "1.2.3.4.5.6.999";
+        String frameList = "1";
+
+        when(mockDicomService.retrieveFrames(any(UserI.class), eq(projectId), eq(studyUID),
+                eq(seriesUID), eq(instanceUID), eq(frameList)))
+            .thenReturn(new ArrayList<>());
+
+        // Act
+        ResponseEntity<?> response = wadoRsApi.retrieveFrames(projectId, studyUID, seriesUID,
+                instanceUID, frameList, null);
+
+        // Assert
+        assertEquals("Should return 404 Not Found when no frames retrieved",
+                HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    public void testRetrieveFrames_InvalidFrameNumbers() {
+        // Arrange
+        String projectId = "TestProject";
+        String studyUID = "1.2.3.4.5";
+        String seriesUID = "1.2.3.4.5.100";
+        String instanceUID = "1.2.3.4.5.6.1";
+        String frameList = "999";
+
+        // Service returns empty list when frames are out of range
+        when(mockDicomService.retrieveFrames(any(UserI.class), eq(projectId), eq(studyUID),
+                eq(seriesUID), eq(instanceUID), eq(frameList)))
+            .thenReturn(new ArrayList<>());
+
+        // Act
+        ResponseEntity<?> response = wadoRsApi.retrieveFrames(projectId, studyUID, seriesUID,
+                instanceUID, frameList, null);
+
+        // Assert
+        assertEquals("Should return 404 when frame numbers are invalid",
+                HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    public void testRetrieveFrames_NonSequentialFrames() {
+        // Arrange
+        String projectId = "TestProject";
+        String studyUID = "1.2.3.4.5";
+        String seriesUID = "1.2.3.4.5.100";
+        String instanceUID = "1.2.3.4.5.6.1";
+        String frameList = "3,1,5";
+
+        List<byte[]> mockFrames = new ArrayList<>();
+        mockFrames.add(new byte[]{3});
+        mockFrames.add(new byte[]{1});
+        mockFrames.add(new byte[]{5});
+
+        when(mockDicomService.retrieveFrames(any(UserI.class), eq(projectId), eq(studyUID),
+                eq(seriesUID), eq(instanceUID), eq(frameList)))
+            .thenReturn(mockFrames);
+
+        // Act
+        ResponseEntity<?> response = wadoRsApi.retrieveFrames(projectId, studyUID, seriesUID,
+                instanceUID, frameList, null);
+
+        // Assert
+        assertEquals("Should return 200 OK for non-sequential frames",
+                HttpStatus.OK, response.getStatusCode());
+        assertEquals("Should return 3 frames", 3, mockFrames.size());
+    }
 }

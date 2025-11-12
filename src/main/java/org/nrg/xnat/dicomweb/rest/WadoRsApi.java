@@ -333,6 +333,65 @@ public class WadoRsApi extends AbstractXapiRestController {
     }
 
     /**
+     * Retrieve specific frame(s) from an instance
+     * GET /dicomweb/projects/{projectId}/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}/frames/{frameList}
+     */
+    @XapiRequestMapping(
+            value = "/dicomweb/projects/{projectId}/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}/frames/{frameList}",
+            method = RequestMethod.GET,
+            produces = {"application/octet-stream", "multipart/related"}
+    )
+    @ApiOperation(value = "Retrieve frame(s) from instance (WADO-RS)", response = byte[].class)
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Frame(s) retrieved"),
+            @ApiResponse(code = 401, message = "Must be authenticated"),
+            @ApiResponse(code = 404, message = "Instance or frame not found"),
+            @ApiResponse(code = 500, message = "Internal error")
+    })
+    public ResponseEntity<InputStreamResource> retrieveFrames(@PathVariable String projectId,
+                                                              @PathVariable String studyUID,
+                                                              @PathVariable String seriesUID,
+                                                              @PathVariable String instanceUID,
+                                                              @PathVariable String frameList,
+                                                              HttpServletRequest request) {
+        try {
+            UserI user = getSessionUser();
+            List<byte[]> frames = dicomService.retrieveFrames(user, projectId, studyUID, seriesUID, instanceUID, frameList);
+
+            if (frames == null || frames.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Single frame - return as application/octet-stream
+            if (frames.size() == 1) {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+
+                ByteArrayInputStream stream = new ByteArrayInputStream(frames.get(0));
+                return ResponseEntity.ok()
+                        .headers(headers)
+                        .body(new InputStreamResource(stream));
+            }
+
+            // Multiple frames - return as multipart/related
+            String boundary = UUID.randomUUID().toString();
+            ByteArrayOutputStream multipart = createMultipartFrameResponse(frames, boundary);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(
+                    "multipart/related; type=\"application/octet-stream\"; boundary=" + boundary));
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(new InputStreamResource(new ByteArrayInputStream(multipart.toByteArray())));
+
+        } catch (Exception e) {
+            logger.error("Error retrieving frames from instance: " + instanceUID, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
      * Retrieve metadata for all instances in a series
      * GET /dicomweb/projects/{projectId}/studies/{studyUID}/series/{seriesUID}/metadata
      */
@@ -399,6 +458,25 @@ public class WadoRsApi extends AbstractXapiRestController {
 
             output.write("\r\n".getBytes());
             stream.close();
+        }
+
+        output.write(("--" + boundary + "--\r\n").getBytes());
+
+        return output;
+    }
+
+    /**
+     * Create a multipart/related response with frame data
+     */
+    private ByteArrayOutputStream createMultipartFrameResponse(List<byte[]> frames, String boundary) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        for (byte[] frameData : frames) {
+            output.write(("--" + boundary + "\r\n").getBytes());
+            output.write("Content-Type: application/octet-stream\r\n".getBytes());
+            output.write("\r\n".getBytes());
+            output.write(frameData);
+            output.write("\r\n".getBytes());
         }
 
         output.write(("--" + boundary + "--\r\n").getBytes());
