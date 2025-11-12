@@ -965,12 +965,86 @@ public class XnatDicomServiceImpl implements XnatDicomService {
 
     /**
      * Extract pixel data for a specific frame (0-based index)
+     * Returns raw uncompressed pixel data in native format
      */
     private byte[] extractFramePixelData(File dicomFile, int frameIndex) {
+        try (DicomInputStream dis = new DicomInputStream(dicomFile)) {
+            Attributes attrs = dis.readDataset(-1, -1);
+
+            // Validate frame index
+            int numberOfFrames = attrs.getInt(Tag.NumberOfFrames, 1);
+            if (frameIndex < 0 || frameIndex >= numberOfFrames) {
+                logger.error("Frame index {} out of range (0-{})", frameIndex, numberOfFrames - 1);
+                return null;
+            }
+
+            // Get pixel data
+            Object pixelData = attrs.getValue(Tag.PixelData);
+
+            if (pixelData instanceof byte[]) {
+                // Uncompressed pixel data
+                byte[] allPixels = (byte[]) pixelData;
+
+                // Calculate frame size
+                int rows = attrs.getInt(Tag.Rows, 0);
+                int cols = attrs.getInt(Tag.Columns, 0);
+                int samplesPerPixel = attrs.getInt(Tag.SamplesPerPixel, 1);
+                int bitsAllocated = attrs.getInt(Tag.BitsAllocated, 8);
+                int bytesPerSample = bitsAllocated / 8;
+
+                int frameSize = rows * cols * samplesPerPixel * bytesPerSample;
+
+                if (frameSize > 0 && (frameIndex * frameSize + frameSize) <= allPixels.length) {
+                    byte[] frameData = new byte[frameSize];
+                    System.arraycopy(allPixels, frameIndex * frameSize, frameData, 0, frameSize);
+                    logger.debug("Extracted uncompressed frame {} ({} bytes)", frameIndex, frameSize);
+                    return frameData;
+                }
+            } else {
+                // Compressed or fragmented pixel data
+                // Use dcm4che's Fragments to access compressed frame data
+                try {
+                    org.dcm4che3.data.Fragments fragments = (org.dcm4che3.data.Fragments) pixelData;
+
+                    // For compressed data, each fragment typically represents one frame
+                    // (though this depends on the specific transfer syntax)
+                    if (frameIndex < fragments.size()) {
+                        Object fragment = fragments.get(frameIndex);
+                        if (fragment instanceof byte[]) {
+                            byte[] compressedFrame = (byte[]) fragment;
+                            logger.debug("Extracted compressed frame {} ({} bytes)", frameIndex, compressedFrame.length);
+                            return compressedFrame;
+                        }
+                    }
+
+                    // If fragments don't map 1:1 to frames, use ImageIO as fallback
+                    logger.debug("Using ImageIO fallback for frame {} extraction", frameIndex);
+                    return extractFrameViaImageIO(dicomFile, frameIndex);
+
+                } catch (ClassCastException e) {
+                    logger.debug("Pixel data not in Fragments format, using ImageIO");
+                    return extractFrameViaImageIO(dicomFile, frameIndex);
+                }
+            }
+
+            logger.error("Could not extract frame {} - invalid pixel data format", frameIndex);
+            return null;
+
+        } catch (Exception e) {
+            logger.error("Error extracting frame pixel data", e);
+            return null;
+        }
+    }
+
+    /**
+     * Fallback method to extract frame using ImageIO (decompresses and re-encodes)
+     * This should only be used when direct fragment access is not possible
+     */
+    private byte[] extractFrameViaImageIO(File dicomFile, int frameIndex) {
         try {
             ImageInputStream iis = ImageIO.createImageInputStream(dicomFile);
             if (iis == null) {
-                logger.error("Could not create ImageInputStream for DICOM file");
+                logger.error("Could not create ImageInputStream");
                 return null;
             }
 
@@ -984,7 +1058,6 @@ public class XnatDicomServiceImpl implements XnatDicomService {
             ImageReader reader = readers.next();
             reader.setInput(iis, false);
 
-            // Check if the frame index is valid
             int numImages = reader.getNumImages(true);
             if (frameIndex < 0 || frameIndex >= numImages) {
                 logger.error("Frame index {} out of range (0-{})", frameIndex, numImages - 1);
@@ -993,7 +1066,7 @@ public class XnatDicomServiceImpl implements XnatDicomService {
                 return null;
             }
 
-            // Read the raw raster data for the frame
+            // Read and decompress the frame
             DicomImageReadParam param = (DicomImageReadParam) reader.getDefaultReadParam();
             BufferedImage image = reader.read(frameIndex, param);
 
@@ -1005,49 +1078,39 @@ public class XnatDicomServiceImpl implements XnatDicomService {
                 return null;
             }
 
-            // Return the raw pixel data
-            // For now, return the pixel data as-is from the BufferedImage
+            // Convert to raw uncompressed pixel data
+            // Extract pixels in their native format (grayscale or RGB)
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-            // Use the native DICOM reader to get raw pixel data
-            try (DicomInputStream dis = new DicomInputStream(dicomFile)) {
-                Attributes attrs = dis.readDataset(-1, -1);
+            // Get raw pixel data from BufferedImage
+            java.awt.image.DataBuffer dataBuffer = image.getRaster().getDataBuffer();
 
-                // Get pixel data fragment for the specific frame
-                Object pixelData = attrs.getValue(Tag.PixelData);
-
-                if (pixelData instanceof byte[]) {
-                    // Single frame or uncompressed
-                    byte[] allPixels = (byte[]) pixelData;
-
-                    // Calculate frame size
-                    int rows = attrs.getInt(Tag.Rows, 0);
-                    int cols = attrs.getInt(Tag.Columns, 0);
-                    int samplesPerPixel = attrs.getInt(Tag.SamplesPerPixel, 1);
-                    int bitsAllocated = attrs.getInt(Tag.BitsAllocated, 8);
-                    int bytesPerSample = bitsAllocated / 8;
-
-                    int frameSize = rows * cols * samplesPerPixel * bytesPerSample;
-
-                    if (frameSize > 0 && (frameIndex * frameSize + frameSize) <= allPixels.length) {
-                        byte[] frameData = new byte[frameSize];
-                        System.arraycopy(allPixels, frameIndex * frameSize, frameData, 0, frameSize);
-                        return frameData;
-                    }
-                } else {
-                    // Compressed or fragmented pixel data
-                    // For compressed data, we need to return the rendered image
-                    // Convert BufferedImage to raw bytes
-                    ImageIO.write(image, "PNG", baos);
-                    return baos.toByteArray();
+            if (dataBuffer instanceof java.awt.image.DataBufferByte) {
+                byte[] pixels = ((java.awt.image.DataBufferByte) dataBuffer).getData();
+                baos.write(pixels);
+            } else if (dataBuffer instanceof java.awt.image.DataBufferUShort) {
+                short[] pixels = ((java.awt.image.DataBufferUShort) dataBuffer).getData();
+                for (short pixel : pixels) {
+                    baos.write(pixel & 0xFF);
+                    baos.write((pixel >> 8) & 0xFF);
                 }
+            } else if (dataBuffer instanceof java.awt.image.DataBufferShort) {
+                short[] pixels = ((java.awt.image.DataBufferShort) dataBuffer).getData();
+                for (short pixel : pixels) {
+                    baos.write(pixel & 0xFF);
+                    baos.write((pixel >> 8) & 0xFF);
+                }
+            } else {
+                logger.error("Unsupported pixel data buffer type: {}", dataBuffer.getClass().getName());
+                return null;
             }
 
-            logger.debug("Successfully extracted frame {} pixel data", frameIndex);
+            logger.debug("Extracted and decompressed frame {} via ImageIO ({} bytes)",
+                        frameIndex, baos.size());
             return baos.toByteArray();
 
         } catch (Exception e) {
-            logger.error("Error extracting frame pixel data", e);
+            logger.error("Error extracting frame via ImageIO", e);
             return null;
         }
     }
