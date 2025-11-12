@@ -982,7 +982,7 @@ public class XnatDicomServiceImpl implements XnatDicomService {
             Object pixelData = attrs.getValue(Tag.PixelData);
 
             if (pixelData instanceof byte[]) {
-                // Uncompressed pixel data
+                // Uncompressed pixel data - can extract directly
                 byte[] allPixels = (byte[]) pixelData;
 
                 // Calculate frame size
@@ -1001,30 +1001,14 @@ public class XnatDicomServiceImpl implements XnatDicomService {
                     return frameData;
                 }
             } else {
-                // Compressed or fragmented pixel data
-                // Use dcm4che's Fragments to access compressed frame data
-                try {
-                    org.dcm4che3.data.Fragments fragments = (org.dcm4che3.data.Fragments) pixelData;
-
-                    // For compressed data, each fragment typically represents one frame
-                    // (though this depends on the specific transfer syntax)
-                    if (frameIndex < fragments.size()) {
-                        Object fragment = fragments.get(frameIndex);
-                        if (fragment instanceof byte[]) {
-                            byte[] compressedFrame = (byte[]) fragment;
-                            logger.debug("Extracted compressed frame {} ({} bytes)", frameIndex, compressedFrame.length);
-                            return compressedFrame;
-                        }
-                    }
-
-                    // If fragments don't map 1:1 to frames, use ImageIO as fallback
-                    logger.debug("Using ImageIO fallback for frame {} extraction", frameIndex);
-                    return extractFrameViaImageIO(dicomFile, frameIndex);
-
-                } catch (ClassCastException e) {
-                    logger.debug("Pixel data not in Fragments format, using ImageIO");
-                    return extractFrameViaImageIO(dicomFile, frameIndex);
-                }
+                // Compressed or encapsulated pixel data
+                // Cannot safely extract without proper decompression due to:
+                // 1. Fragment 0 is Basic Offset Table (not pixel data)
+                // 2. Multiple fragments may compose a single frame
+                // 3. Transfer syntax specific encoding
+                // Therefore, use ImageIO to decompress properly
+                logger.debug("Compressed pixel data detected, using ImageIO for frame {} extraction", frameIndex);
+                return extractFrameViaImageIO(dicomFile, frameIndex);
             }
 
             logger.error("Could not extract frame {} - invalid pixel data format", frameIndex);
